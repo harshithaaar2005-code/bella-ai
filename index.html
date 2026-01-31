@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bella AI Assistant</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #212121; color: #ececec; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        header { background: #171717; padding: 15px; text-align: center; border-bottom: 1px solid #333; }
+        header h1 { margin: 0; font-size: 1.5rem; color: #10a37f; }
+        #chat-window { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .msg { padding: 12px 16px; border-radius: 15px; max-width: 80%; line-height: 1.6; word-wrap: break-word; }
+        .user { background: #343541; align-self: flex-end; border: 1px solid #444; }
+        .ai { background: #444654; align-self: flex-start; border-left: 4px solid #10a37f; }
+        #status-bar { padding: 8px; text-align: center; background: #000; font-size: 0.8rem; color: #888; }
+        .input-area { background: #2f2f2f; padding: 20px; display: flex; gap: 10px; border-top: 1px solid #333; }
+        input { flex: 1; background: #3c3c3c; border: 1px solid #555; padding: 12px; color: white; border-radius: 8px; outline: none; }
+        button { background: #10a37f; color: white; border: none; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #444; color: #777; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <header><h1>Bella AI</h1></header>
+    <div id="status-bar">Bella is waking up... Please wait.</div>
+    
+    <div id="chat-window">
+        <div class="msg ai">Hi! I'm <b>Bella</b>, your new AI assistant. I run entirely in your browser—no API keys required! How can I help you today?</div>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="user-input" placeholder="Message Bella..." disabled>
+        <button id="send-btn" disabled>Send</button>
+    </div>
+
+    <script type="module">
+        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+
+        const status = document.getElementById("status-bar");
+        const chatWindow = document.getElementById("chat-window");
+        const input = document.getElementById("user-input");
+        const btn = document.getElementById("send-btn");
+
+        // We use Llama-3.2-1B: It's small, fast, and smart!
+        const model = "Llama-3.2-1B-Instruct-q4f32_1-MLC";
+
+        let engine;
+
+        async function initBella() {
+            try {
+                engine = await CreateMLCEngine(model, {
+                    initProgressCallback: (report) => {
+                        status.innerText = `Bella is learning: ${Math.round(report.progress * 100)}%`;
+                    }
+                });
+
+                status.innerText = "Bella AI is Online";
+                input.disabled = false;
+                btn.disabled = false;
+            } catch (e) {
+                status.innerText = "Error: Bella needs a modern browser with WebGPU.";
+            }
+        }
+
+        async function handleSend() {
+            const text = input.value.trim();
+            if (!text) return;
+
+            chatWindow.innerHTML += `<div class="msg user">${text}</div>`;
+            input.value = "";
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            // Bella's System Identity
+            const messages = [
+                { role: "system", content: "You are Bella, a friendly and highly intelligent AI assistant. You answer questions clearly and concisely." },
+                { role: "user", content: text }
+            ];
+
+            const reply = await engine.chat.completions.create({ messages });
+            const bellaResponse = reply.choices[0].message.content;
+
+            chatWindow.innerHTML += `<div class="msg ai">${bellaResponse}</div>`;
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        btn.onclick = handleSend;
+        input.addEventListener("keypress", (e) => { if(e.key === "Enter") handleSend(); });
+
+        initBella();
+    </script>
+</body>
+</html>
